@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-logging-system"
+version = "0.4.0"
+description = "Operational discipline for multi-agent AI: OT-inspired logging, trend analysis, and anomaly detection for worker agents."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Nuclide" }]
+keywords = ["agents", "monitoring", "observability", "anomaly-detection", "multi-agent"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+include = ["agent_logging_system*"]
+exclude = ["tests*", "examples*"]
