@@ -8,7 +8,7 @@ Operational monitoring for multi-agent AI. A logging agent watches your worker a
 
 The design is borrowed from industrial control rooms. That story is below. It is also why the tool works the way it does.
 
-![The monitor watching an O->S->H subagent fan-out. A slow execution lane trips latency_high and queue_buildup. The long synthesis turn stays silent.](docs/demo.svg)
+![The monitor watching an O->S->H subagent fan-out. A slow execution lane trips latency_high and queue_buildup. The long synthesis turn stays silent.](docs/demo.gif)
 
 ## Where this came from
 
