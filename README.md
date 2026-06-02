@@ -23,6 +23,8 @@ A fleet of AI agents needs that discipline and rarely has it. This tool maps the
 
 One control-room rule became a feature. A threshold has to be relative to normal for that signal. A boiler at 200F is fine. A cooling tower at 200F is an emergency. Same number, different baseline. So the latency alarm compares each agent against its own history, not a fixed line.
 
+The full argument, with all four lessons and the measurements behind them, is in [docs/operational-discipline-for-agentic-workflows.md](docs/operational-discipline-for-agentic-workflows.md).
+
 ## Quick start
 
 ```python
