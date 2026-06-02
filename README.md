@@ -1,8 +1,14 @@
 # Agent Logging System
 
+[![tests](https://img.shields.io/github/actions/workflow/status/nuclide-research/agent-logging-system/tests.yml?label=tests)](https://github.com/nuclide-research/agent-logging-system/actions/workflows/tests.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![python](https://img.shields.io/badge/python-3.9%2B-blue)
+
 Operational monitoring for multi-agent AI. A logging agent watches your worker agents. It tracks each one's trend, raises an alarm when a signal drifts from its own normal, and says what to do about it.
 
 The design is borrowed from industrial control rooms. That story is below. It is also why the tool works the way it does.
+
+![The monitor watching an O->S->H subagent fan-out. A slow execution lane trips latency_high and queue_buildup. The long synthesis turn stays silent.](docs/demo.svg)
 
 ## Where this came from
 
@@ -50,17 +56,13 @@ print(state["recommendations"])
 
 ## Architecture
 
-```
-Worker agents emit Observations
-        |
-        v
-   LoggingAgent  (the control-room console)
-        |-- StateModel            : rolling per-agent state + trends (the historian)
-        |-- AnomalyDetector       : rule-based threshold checks      (the alarm engine)
-        +-- RecommendationEngine  : anomaly -> actionable verb        (the response procedure)
-        |
-        v
-   get_system_state() -> { agents, anomalies, recommendations }
+```mermaid
+flowchart TD
+    W["Worker agents"] -->|"emit one Observation per action"| LA["LoggingAgent · the console"]
+    LA --> SM["StateModel<br/>historian: rolling window + trends"]
+    SM --> AD["AnomalyDetector<br/>alarm engine: trips on deviation"]
+    AD --> RE["RecommendationEngine<br/>response procedure: alarm to action"]
+    RE --> OUT["get_system_state()<br/>agents · anomalies · recommendations"]
 ```
 
 ## Default rules
