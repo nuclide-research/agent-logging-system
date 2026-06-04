@@ -2,5 +2,6 @@
 from .base_adapter import BaseAdapter
 from .warrant_adapter import WarrantAdapter
 from .orchestrator_adapter import OrchestratorAdapter
+from .aimap_adapter import AimapAdapter
 
-__all__ = ["BaseAdapter", "WarrantAdapter", "OrchestratorAdapter"]
+__all__ = ["BaseAdapter", "WarrantAdapter", "OrchestratorAdapter", "AimapAdapter"]
