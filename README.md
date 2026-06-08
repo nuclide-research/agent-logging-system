@@ -1,28 +1,61 @@
-# agent-logging-system
+<h1 align="center">agent-logging-system</h1>
 
-[![tests](https://img.shields.io/github/actions/workflow/status/nuclide-research/agent-logging-system/tests.yml?label=tests)](https://github.com/nuclide-research/agent-logging-system/actions/workflows/tests.yml)
-[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-![python](https://img.shields.io/badge/python-3.9%2B-blue)
+<h4 align="center">Operational monitor for multi-agent AI. Per-action observations, per-agent trends, baseline-relative alarms, named recommendations.</h4>
 
-OT-inspired operational monitor for multi-agent AI: a logging agent watches your worker agents, tracks each one's trend against its own baseline, trips named alarms on deviation, and maps each alarm to a concrete action.
+<p align="center">
+  <a href="https://github.com/nuclide-research/agent-logging-system/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/nuclide-research/agent-logging-system/tests.yml?label=tests&style=flat-square" alt="tests"></a>
+  <a href="https://github.com/nuclide-research/agent-logging-system/blob/main/LICENSE"><img src="https://img.shields.io/github/license/nuclide-research/agent-logging-system?style=flat-square" alt="license"></a>
+  <a href="https://www.python.org"><img src="https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python" alt="python"></a>
+  <a href="https://nuclide-research.com"><img src="https://img.shields.io/badge/by-NuClide-blue?style=flat-square" alt="NuClide"></a>
+</p>
 
-The design is borrowed from industrial control rooms. AVEVA PI holds every sensor reading. WinCC raises an alarm when a value drifts. IBM Maximo maps an alarm to a maintenance procedure. An operator reads the trend, not the snapshot, and catches a failing pump bearing weeks before it seizes from a slow climb in vibration. A fleet of AI agents needs that discipline. This tool maps the control room onto the agents: one `Observation` per action, a rolling-window `StateModel` that tracks trends per agent, an `AnomalyDetector` that trips on baseline deviation, and a `RecommendationEngine` that names the fix. Standard library only. No hard dependencies.
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#components">Components</a> •
+  <a href="#default-rules">Rules</a> •
+  <a href="#adapters">Adapters</a> •
+  <a href="#scope">Scope</a>
+</p>
 
-## Install
+---
+
+agent-logging-system watches a fleet of AI agents the way an industrial control room watches a plant. One `Observation` per action goes in. A rolling per-agent window tracks the trend. An `AnomalyDetector` trips named alarms when behavior drifts from each agent's own baseline. A `RecommendationEngine` maps each alarm to a concrete action.
+
+The design is borrowed from OT. AVEVA PI holds every sensor reading. WinCC raises an alarm when a value drifts. IBM Maximo maps that alarm to a maintenance procedure. An operator reads the trend, not the snapshot, and catches a failing pump bearing weeks before it seizes. This tool maps that discipline onto AI agents. Standard library only. No runtime dependencies.
+
+# Features
+
+- Per-action `Observation` schema: timestamp, agent_id, action, input, output, latency_ms, status, confidence, latency_kind
+- Rolling 20-observation window per agent, tracked by `StateModel`
+- Baseline-relative alarms: each agent is compared against its own normal, not a fixed line
+- Two latency kinds (`machine`, `generation`). A long generation never trips the machine alarm at any magnitude
+- Three default rules: `latency_high`, `error_rate_high`, `queue_buildup`
+- `RecommendationEngine` maps every alarm to a named fix (`throttle_input`, `investigate_failures`)
+- `BaseAdapter` to wire any host system in. Orchestrator and Warrant adapters ship
+- Custom rules via `AnomalyRule(name, check, alert_level, recommendation)`
+- O(1) ingest, incremental scan (~15-27 us for 5 agents)
+- Stdlib only. No database, no file on disk, no external collector
+
+# Installation
+
+```bash
+pip install agent-logging-system
+```
+
+Or from source:
 
 ```bash
 git clone https://github.com/nuclide-research/agent-logging-system
 cd agent-logging-system
-pip install -e .            # editable install from source
-# or for dev work with tests:
-pip install -e ".[dev]"
+pip install -e .             # editable install
+pip install -e ".[dev]"      # plus test deps
 ```
 
-Python 3.9 or later. No runtime dependencies beyond the standard library.
+Python 3.9 or later.
 
-Current version: `0.4.0`
-
-## Quick start
+# Quick start
 
 ```python
 from agent_logging_system import LoggingAgent, Observation
@@ -45,7 +78,7 @@ print(state["anomalies"])
 print(state["recommendations"])
 ```
 
-## Components
+# Components
 
 | Component | OT analogue | Responsibility |
 |-----------|-------------|----------------|
@@ -56,7 +89,7 @@ print(state["recommendations"])
 | `LoggingAgent` | control-room console | `ingest` + `get_system_state`; incremental scan |
 | `adapters/` | wiring to the plant | bind into an orchestrator, coding agent, or custom loop |
 
-## Observation schema
+# Observation schema
 
 ```python
 Observation(
@@ -73,7 +106,7 @@ Observation(
 )
 ```
 
-## Latency kinds
+# Latency kinds
 
 `latency_ms` carries two different quantities, distinguished by `latency_kind`:
 
@@ -82,7 +115,7 @@ Observation(
 | `"machine"` (default) | execution time of a call | pathological, contended | yes |
 | `"generation"` | wall-clock of producing a large output | usually expected | no, ever |
 
-Mixing them is a type error. A 9s API call that should take 1s and a 9s explanation meant to be long are not the same event. A duration tagged `generation` can never trip the machine alarm at any magnitude. `"machine"` is the default: an unclassified duration is treated as alarmable.
+A 9-second API call that should take 1 second and a 9-second explanation meant to be long are not the same event. A duration tagged `generation` can never trip the machine alarm. `"machine"` is the default: an unclassified duration is treated as alarmable.
 
 ```python
 from agent_logging_system import Observation, LATENCY_GENERATION
@@ -94,9 +127,7 @@ Observation(
 )
 ```
 
-## Default rules
-
-Three rules ship:
+# Default rules
 
 | Rule | Level | Trips when | Recommends |
 |------|-------|-----------|-----------|
@@ -104,9 +135,9 @@ Three rules ship:
 | `error_rate_high` | MEDIUM | error rate over 10% | `investigate_failures` |
 | `queue_buildup` | LOW | over 10 observations and error rate under 5% | signal only |
 
-`latency_high` is baseline-relative: it compares each agent against its own established normal, not a fixed line. A steady-but-slow agent does not cry wolf. A 1000ms to 9000ms jump still trips.
+`latency_high` is baseline-relative. A steady-but-slow agent does not cry wolf. A 1000ms-to-9000ms jump still trips.
 
-## `get_system_state` output
+# `get_system_state` output
 
 ```python
 {
@@ -128,29 +159,21 @@ Three rules ship:
         }
     },
     "anomalies": [
-        {
-            "name": "latency_high",
-            "alert_level": "HIGH",
-            "recommendation": "...",
-            "agent_id": "worker-001"
-        }
+        {"name": "latency_high", "alert_level": "HIGH",
+         "recommendation": "...", "agent_id": "worker-001"}
     ],
     "recommendations": [
-        {
-            "action": "throttle_input",
-            "priority": "HIGH",
-            "reason": "...",
-            "agent_id": "worker-001"
-        }
+        {"action": "throttle_input", "priority": "HIGH",
+         "reason": "...", "agent_id": "worker-001"}
     ]
 }
 ```
 
-## Adapters
+# Adapters
 
-Subclass `BaseAdapter` to wire a host system into the monitor. Two ship:
+Subclass `BaseAdapter` to wire a host system into the monitor. Two ship.
 
-**`OrchestratorAdapter`** for an O->S->H subagent fan-out. Dispatches log per lane (`retrieval.sonnet`, `execution.haiku`) as machine latency; a lane builds a baseline and a slow batch trips. The orchestrator's synthesis turn logs as generation latency; a long integration never alarms.
+**`OrchestratorAdapter`** for an O->S->H subagent fan-out. Dispatches log per lane (`retrieval.sonnet`, `execution.haiku`) as machine latency. A lane builds a baseline and a slow batch trips. The orchestrator's synthesis turn logs as generation latency. A long integration never alarms.
 
 ```python
 from agent_logging_system import LoggingAgent
@@ -162,9 +185,9 @@ orch.log_synthesis(18000)                                               # genera
 print(orch.get_state()["anomalies"])
 ```
 
-**`WarrantAdapter`** for a book-grounded coding agent. Reasoning steps and code generation log as generation latency. Citation checks log as machine latency: a slow citation lookup is a real signal.
+**`WarrantAdapter`** for a book-grounded coding agent. Reasoning and code generation log as generation latency. Citation checks log as machine latency: a slow citation lookup is a real signal.
 
-## Custom rules
+# Custom rules
 
 ```python
 from agent_logging_system.anomaly_detector import AnomalyRule
@@ -177,16 +200,16 @@ logger.add_anomaly_rule(AnomalyRule(
 ))
 ```
 
-## Performance
+# Performance
 
-`ingest` is O(1): update state, mark the agent dirty. `get_system_state` re-evaluates only agents that changed since the last scan.
+`ingest` is O(1). `get_system_state` re-evaluates only agents that changed since the last scan.
 
 | Operation | Cost |
 |-----------|------|
 | `ingest` | ~2 us |
 | `get_system_state` | ~15 to 27 us for 5 agents |
 
-## Tests
+# Tests
 
 ```bash
 pytest
@@ -194,7 +217,7 @@ pytest
 
 Seven test files cover the logging agent, observation schema, anomaly detector, state model, and orchestrator adapter.
 
-## Examples
+# Examples
 
 ```bash
 python examples/basic_multi_agent.py        # three agents degrading at different rates
@@ -204,10 +227,18 @@ python examples/session_replay.py           # replay a session transcript throug
 python examples/self_monitor.py             # the monitor watching itself, with real perf timings
 ```
 
-## What agent-logging-system is not
+# Scope
 
 agent-logging-system is not a tracer, a profiler, or a logging framework. It does not capture stack frames, record every line of output, or send data to an external collector. It holds no persistent state: no database, no file on disk. It receives `Observation` structs your code constructs, evaluates rules over rolling per-agent windows, and returns a plain dict. It stops there.
 
-## License
+# Our other projects
+
+- [aimap](https://github.com/nuclide-research/aimap) — fingerprint scanner for exposed AI and ML infrastructure
+- [nuclide-atlas](https://github.com/nuclide-research/nuclide-atlas) — see any LLM stack as a graph
+- [safety-stream](https://github.com/nuclide-research/safety-stream) — live SSE view of a model's layered safety reasoning
+- [VisorLog](https://github.com/nuclide-research/visorlog) — finding ledger and ingest pipeline
+- [BARE](https://github.com/nuclide-research/BARE) — semantic exploit-module ranking over scanner findings
+
+# License
 
 MIT. Part of the NuClide toolchain. Contact: [nuclide-research.com](https://nuclide-research.com)
